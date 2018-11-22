@@ -310,7 +310,7 @@ def test_pretty_printing_supports_pretty_printing():
 
 def test_pretty_printing_configured_by_request():
     def options_from_request(request):
-        return TestSchema, None, request.GET.get('pretty') == '1'
+        return TestSchema, None, request.GET.get('pretty') == '1', None
 
     wsgi = graphql_wsgi_dynamic(options_from_request)
 
