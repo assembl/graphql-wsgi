@@ -1,7 +1,9 @@
 import pytest
 import json
+from webob import Request
 from webtest import TestApp as Client
 from graphql_wsgi import graphql_wsgi, graphql_wsgi_dynamic
+from graphql_wsgi.main import get_graphql_params
 
 from graphql.type import (
     GraphQLObjectType,
@@ -517,3 +519,40 @@ def test_POST_functionality_variables_in_json_POST_body_not_encoded():
             'test': 'Hello Dolly'
         }
     }
+
+
+def test_get_graphql_params_variables_simple():
+    data = {u'operationName': u'UploadImage',
+            u'query': u'mutation UploadImage($image: String!) { uploadImage(image: $image) { image { url } } }',
+            u'variables': {}}
+    request = Request.blank('/graphql')
+    request.method = 'POST'
+    # this is not quite exact for FieldStorage here,
+    # but it's enough to test the behavior of getting variables
+    request.body = b"operations={}&variables.image=FieldStorage('variables.image', u'xQ0Uckbi7ckp.jpg')))".format(json.dumps(data))
+    request.environ['CONTENT_LENGTH'] = str(len(request.body))
+    request.environ['CONTENT_TYPE'] = 'application/x-www-form-urlencoded'
+    query, variables, operation_name = get_graphql_params(request, data)
+    assert query == data['query']
+    assert variables == {'image': 'variables.image'}
+    assert operation_name == u'UploadImage'
+
+
+def test_get_graphql_params_variables_videoinput():
+    # VideoInput has the following fields
+    # mediaFile: String!
+    # title: String!
+    data = {u'operationName': u'UploadVideo',
+            u'query': u'mutation UploadVideo($video: VideoInput) { uploadVideo(video: $video) { video { title url } } }',
+            u'variables': {u"video": {u"title": u"Video title"}}}
+    request = Request.blank('/graphql')
+    request.method = 'POST'
+    # this is not quite exact for FieldStorage here,
+    # but it's enough to test the behavior of getting variables
+    request.body = b"operations={}&variables.video.mediaFile=FieldStorage('variables.video.mediaFile', u'xQ0Uckbi7ckp.jpg')))".format(json.dumps(data))
+    request.environ['CONTENT_LENGTH'] = str(len(request.body))
+    request.environ['CONTENT_TYPE'] = 'application/x-www-form-urlencoded'
+    query, variables, operation_name = get_graphql_params(request, data)
+    assert query == data['query']
+    assert variables == {u"video": {u"title": u"Video title", "mediaFile": "variables.video.mediaFile"}}
+    assert operation_name == u'UploadVideo'
