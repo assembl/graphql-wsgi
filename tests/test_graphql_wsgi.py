@@ -540,7 +540,7 @@ def test_get_graphql_params_variables_simple():
 
 def test_get_graphql_params_variables_videoinput():
     # VideoInput has the following fields
-    # mediaFile: String!
+    # mediaFile: String
     # title: String!
     data = {u'operationName': u'UploadVideo',
             u'query': u'mutation UploadVideo($video: VideoInput) { uploadVideo(video: $video) { video { title url } } }',
@@ -556,3 +556,27 @@ def test_get_graphql_params_variables_videoinput():
     assert query == data['query']
     assert variables == {u"video": {u"title": u"Video title", "mediaFile": "variables.video.mediaFile"}}
     assert operation_name == u'UploadVideo'
+
+
+def test_get_graphql_params_variables_list_of_videoinput():
+    # VideoInput has the following fields
+    # mediaFile: String
+    # title: String!
+    data = {u'operationName': u'UploadVideos',
+            u'query': u'mutation UploadVideos($videos: [VideoInput]) { uploadVideos(videos: $videos) { video { title url } } }',
+            u'variables': {u"videos": [{u"title": u"Video title 1"}, {u"title": u"Video title 2"}]}}
+    request = Request.blank('/graphql')
+    request.method = 'POST'
+    # this is not quite exact for FieldStorage here,
+    # but it's enough to test the behavior of getting variables
+    # https://www.npmjs.com/package/extract-files a dependency of apollo-upload-client creates this variables.videos.1.mediaFile name
+    request.body = b"operations={}&variables.videos.1.mediaFile=FieldStorage('variables.videos.1.mediaFile', u'xQ0Uckbi7ckp.jpg')))".format(json.dumps(data))
+    request.environ['CONTENT_LENGTH'] = str(len(request.body))
+    request.environ['CONTENT_TYPE'] = 'application/x-www-form-urlencoded'
+    query, variables, operation_name = get_graphql_params(request, data)
+    assert query == data['query']
+    assert variables == {u"videos": [
+        {u"title": u"Video title 1"},
+        {u"title": u"Video title 2", "mediaFile": "variables.videos.1.mediaFile"}
+    ]}
+    assert operation_name == u'UploadVideos'

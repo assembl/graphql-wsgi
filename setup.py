@@ -24,6 +24,7 @@ setup(
         'graphql-core < 2',
         'webob',
         'six',
+        'dotted',
     ],
     tests_require=tests_require,
     extras_require=dict(

@@ -1,5 +1,7 @@
+import copy
 import json
 
+from dotted.utils import dot
 import six
 from webob.dec import wsgify
 from webob.response import Response
@@ -101,23 +103,6 @@ def parse_body(request):
     return {}
 
 
-def dict_merge(dct, merge_dct):
-    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
-    updating only top-level keys, dict_merge recurses down into dicts nested
-    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
-    ``dct``.
-    :param dct: dict onto which the merge is executed
-    :param merge_dct: dct merged into dct
-    :return: None
-
-    Inspired by: https://gist.github.com/angstwad/bf22d1822c38a92ec0a9."""
-    for k, v in merge_dct.items():
-        if k in dct and isinstance(dct[k], dict) and isinstance(merge_dct[k], dict):
-            dict_merge(dct[k], merge_dct[k])
-        else:
-            dct[k] = merge_dct[k]
-
-
 def get_graphql_params(request, data):
     query = request.GET.get('query') or data.get('query')
 
@@ -135,16 +120,15 @@ def get_graphql_params(request, data):
     operation_name = (request.GET.get('operationName') or
                       data.get('operationName'))
 
+    variables = dot(variables)
     for key, value in request.POST.items():  # support for apollo-upload-client
         if key.startswith('variables.'):
             # variables.my.img => { my: { img: 'variables.my.img' }}
+            # variables.my.0.img => { my: [{ img: 'variables.my.0.img' }]}
             rest = key[10:]
-            parts = rest.split('.')
-            result = reduce(
-                lambda obj, k: {k: obj}, [key] + list(reversed(parts)))
-            dict_merge(variables, result)
+            variables[rest] = key
 
-    return query, variables, operation_name
+    return query, variables.to_python() if variables else None, operation_name
 
 
 def error_response(e, pretty):
