@@ -21,7 +21,7 @@ setup(
     exclude=['tests'],
     install_requires=[
         'setuptools',
-        'graphql-core < 2',
+        'graphql-core',
         'webob',
         'six',
         'dotted',
